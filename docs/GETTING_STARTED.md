@@ -23,9 +23,9 @@ Android Studio → Settings → Build, Execution, Deployment → Build Tools →
 7. 상단 디자인 미리보기를 누르면 열선, 통풍, 탑승자, 음악의 예시 상태를 볼 수 있습니다. 실제 차량 보기를 누르면 실제 데이터로 돌아갑니다.
 8. 스타일 가이드를 누르면 색상, 타이포그래피와 공통 컴포넌트를 확인합니다.
 
-앱 화면이 활성화된 동안 조회 완료 후 약 2초 간격으로 상태를 다시 읽습니다. 현재 설치된 Pleos 이미지에서 CAR_SEATS와 CAR_CLIMATE는 일반 권한이며 앱 manifest에 선언되어 있습니다. 다른 이미지의 권한 조건은 별도 확인이 필요합니다.
+앱 화면이 활성화된 동안 조회 완료 후 약 1초 간격으로 상태를 다시 읽습니다. 현재 설치된 Pleos 이미지에서 CAR_SEATS와 CAR_CLIMATE는 일반 권한이며 앱 manifest에 선언되어 있습니다. 다른 이미지의 권한 조건은 별도 확인이 필요합니다.
 
-Virtual Console에서 Seat Occupancy, Seat Temperature, 공조 상태 등을 바꾸면 앱의 다음 조회에서 반영되는지 확인할 수 있습니다. 지원 범위에 포함되지 않은 항목은 미지원, 조회에 실패한 값은 확인 불가로 표시합니다. 실제 온도 변경이나 시트 조절 명령은 보내지 않습니다.
+Virtual Console에서 Seat Occupancy, Seat Temperature, 공조 상태 등을 바꾸면 앱의 다음 조회에서 반영되는지 확인할 수 있습니다. 지원 범위에 포함되지 않은 항목은 미지원, 조회에 실패한 값은 확인 불가로 표시합니다. debug 앱의 차량 테스트 패널에서는 에뮬레이터에 제어 명령을 보낼 수 있습니다. [제어 안내](EMULATOR_CONTROLS.md)를 참고합니다.
 
 발급 정보의 용도와 보관 방식은 [Pleos 인증 정보](PLEOS_AUTH.md)에 정리합니다.
 

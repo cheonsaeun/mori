@@ -2,7 +2,9 @@ package com.cheonsaeun.mori.model
 
 enum class Availability { WAITING, LIVE, UNSUPPORTED, UNAVAILABLE }
 
-data class Signal<T>(val value: T? = null, val availability: Availability = Availability.WAITING) {
+enum class SignalSource { SDK, EMULATOR }
+
+data class Signal<T>(val value: T? = null, val availability: Availability = Availability.WAITING, val source: SignalSource = SignalSource.SDK) {
     fun label(format: (T) -> String): String = value?.let(format) ?: when (availability) {
         Availability.WAITING -> "확인 중"
         Availability.UNSUPPORTED -> "미지원"
@@ -30,11 +32,14 @@ data class ClimateZone(
     val power: Signal<Boolean> = Signal(availability = Availability.UNSUPPORTED),
 )
 
+data class ClimateMode(val label: String, val enabled: Signal<Boolean>)
+
 data class VehicleSnapshot(
     val seats: List<SeatSnapshot> = SeatId.entries.map { SeatSnapshot(it) },
     val zones: List<ClimateZone> = emptyList(),
     val received: Boolean = false,
     val updatedAt: Long? = null,
+    val modes: List<ClimateMode> = emptyList(),
 )
 
 data class DashboardState(
@@ -42,4 +47,7 @@ data class DashboardState(
     val preview: Boolean = false,
     val selectedSeat: SeatId = SeatId.DRIVER,
     val showGuide: Boolean = false,
+    val simulatorActive: Boolean? = null,
+    val controlBusy: Boolean = false,
+    val controlFeedback: String? = null,
 )

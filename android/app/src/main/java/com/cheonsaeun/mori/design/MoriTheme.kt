@@ -56,7 +56,7 @@ object MoriShapes {
 
 object MoriMotion {
     const val SelectionMillis = 220
-    const val PollMillis = 2000L
+    const val PollMillis = 1000L
 }
 
 private fun type(size: Int, height: Int, weight: FontWeight = FontWeight.Normal) = TextStyle(

@@ -18,6 +18,7 @@ import com.cheonsaeun.mori.model.*
 import java.util.Locale
 
 @Composable
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 fun SharedSpace(state: DashboardState, modifier: Modifier = Modifier) {
     Column(modifier,verticalArrangement=Arrangement.spacedBy(20.dp)) {
         MoriPanel(Modifier.fillMaxWidth().weight(1.18f)) {
@@ -28,7 +29,11 @@ fun SharedSpace(state: DashboardState, modifier: Modifier = Modifier) {
                 }
                 StatusPill("공통 공간")
             }
-            Text("온도와 바람을 공유하는 범위",style=MaterialTheme.typography.bodyMedium,color=MoriColors.Secondary)
+            FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                state.vehicle.modes.forEach { mode ->
+                    StatusPill("${mode.label} ${mode.enabled.label { if(it) "켜짐" else "꺼짐" }}",if(mode.enabled.value==true) MoriColors.Primary else MoriColors.Secondary)
+                }
+            }
             if(state.vehicle.zones.isEmpty()) {
                 Column(Modifier.weight(1f).fillMaxWidth().background(MoriColors.Soft,MoriShapes.Card).padding(24.dp),verticalArrangement=Arrangement.Center) {
                     Text(if(state.vehicle.received) "공조 상태 확인 불가" else "공조 구역을 확인하고 있어요",style=MaterialTheme.typography.titleMedium)

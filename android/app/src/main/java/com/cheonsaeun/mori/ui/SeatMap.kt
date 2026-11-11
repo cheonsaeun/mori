@@ -48,7 +48,7 @@ fun CabinMap(state: DashboardState, onSeat: (SeatId) -> Unit, modifier: Modifier
             MoriIcon("seat")
             Column(Modifier.weight(1f)) {
                 Text("${selected.id.label} 자세",style=MaterialTheme.typography.titleSmall)
-                Text("등받이는 차량 위치값으로 표시해요. 실제 각도와 다를 수 있어요.",style=MaterialTheme.typography.bodySmall,color=MoriColors.Secondary)
+                Text(if(selected.backrest.source==SignalSource.EMULATOR) "자세는 에뮬레이터의 실시간 위치값이에요. 실제 각도와 다를 수 있어요." else "등받이는 차량 위치값으로 표시해요. 실제 각도와 다를 수 있어요.",style=MaterialTheme.typography.bodySmall,color=MoriColors.Secondary)
             }
             Text(selected.backrest.label { "위치 $it" },style=MaterialTheme.typography.titleMedium,color=MoriColors.Primary)
         }
@@ -80,7 +80,7 @@ private fun SeatTile(seat: SeatSnapshot, selected: Boolean, onClick: () -> Unit,
             Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                 val hot=(seat.heat.value ?: 0)>0
                 val cool=(seat.ventilation.value ?: 0)>0
-                MetricPill("seat","등받이",seat.backrest.label { "위치 $it" },if(selected) MoriColors.Primary else MoriColors.Secondary,Color.White,Modifier.weight(1f))
+                MetricPill("seat",if(seat.backrest.source==SignalSource.EMULATOR) "자세(시뮬)" else "등받이",seat.backrest.label { "위치 $it" },if(selected) MoriColors.Primary else MoriColors.Secondary,Color.White,Modifier.weight(1f))
                 MetricPill("heat","열선",seat.heat.label { if(it==0) "꺼짐" else "$it 단계" },if(hot) MoriColors.Heat else MoriColors.Secondary,if(hot) MoriColors.HeatSoft else Color.White,Modifier.weight(1f))
                 MetricPill("cool","통풍",seat.ventilation.label { if(it==0) "꺼짐" else "$it 단계" },if(cool) MoriColors.Cool else MoriColors.Secondary,if(cool) MoriColors.CoolSoft else Color.White,Modifier.weight(1f))
             }

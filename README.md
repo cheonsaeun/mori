@@ -10,13 +10,15 @@
 - 지원 범위 확인 후 좌석과 공조 상태를 자동 조회
 - 실제 차량 데이터와 명시적 디자인 미리보기 분리
 
-음성 대화, 프로필 저장, 공조 제어, 실제 음악 재생은 다음 구현 범위입니다. 현재 차량 API는 읽기 전용이며, 미리보기의 예시 설정을 차량에 전송하지 않습니다.
+음성 대화, 프로필 저장, 실제 차량용 공조 제어와 음악 재생은 다음 구현 범위입니다. 개발용 앱의 차량 테스트 패널에서는 공식 에뮬레이터에 시트 자세와 공조 명령을 보낼 수 있습니다. 디자인 미리보기의 예시 설정은 전송하지 않습니다.
+
+에뮬레이터 제어와 신호 연결: [제어 사용법과 지원 범위](docs/EMULATOR_CONTROLS.md)
 
 디자인 기준: [MORI 디자인 시스템](docs/DESIGN_SYSTEM.md)
 
 ![MORI 차량 공간 디자인 미리보기](docs/images/dashboard-preview.png)
 
-[실제 차량 데이터 화면](docs/images/dashboard-live.png) / [앱 내 스타일 가이드](docs/images/style-guide.png)
+[실시간 제어 반영 화면](docs/images/control-sync.png) / [앱 내 스타일 가이드](docs/images/style-guide.png)
 
 ## 처음 실행하기
 

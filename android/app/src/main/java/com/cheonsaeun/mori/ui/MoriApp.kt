@@ -38,10 +38,11 @@ fun MoriApp(model: MoriViewModel = viewModel()) {
                     }
                     Spacer(Modifier.weight(1f))
                     StatusPill(
-                        when { state.preview -> "디자인 미리보기"; state.vehicle.received -> "차량 상태 연결됨"; state.vehicle.seats.any {it.occupant.availability != com.cheonsaeun.mori.model.Availability.WAITING} -> "차량 연결 확인 필요"; else -> "차량 응답 확인 중" },
-                        if(state.preview) MoriColors.Primary else if(state.vehicle.received) MoriColors.Success else MoriColors.Secondary,
-                        if(!state.preview && state.vehicle.received) MoriColors.SuccessSoft else Color.White,dot=true,
+                        when { state.preview -> "디자인 미리보기"; state.simulatorActive == false -> "시뮬레이터 연결 중"; state.vehicle.received -> if(state.simulatorActive == true) "차량 시뮬레이터 연결됨" else "차량 상태 연결됨"; state.vehicle.seats.any {it.occupant.availability != com.cheonsaeun.mori.model.Availability.WAITING} -> "차량 연결 확인 필요"; else -> "차량 응답 확인 중" },
+                        if(state.preview) MoriColors.Primary else if(state.vehicle.received && state.simulatorActive != false) MoriColors.Success else MoriColors.Secondary,
+                        if(!state.preview && state.vehicle.received && state.simulatorActive != false) MoriColors.SuccessSoft else Color.White,dot=true,
                     )
+                    EmulatorControls(state,model::sendEmulatorCommand)
                     OutlinedButton(onClick=model::togglePreview,modifier=Modifier.height(56.dp),shape=MoriShapes.Pill) {
                         Text(if(state.preview) "실제 차량 보기" else "디자인 미리보기")
                     }
@@ -68,7 +69,7 @@ fun MoriApp(model: MoriViewModel = viewModel()) {
                             Text("“조수석에는 민지, 뒤 오른쪽에는 준호가 탔어.”",style=MaterialTheme.typography.titleMedium)
                             Text(if(state.preview) "미리보기의 이름과 설정은 예시예요. 차량 명령은 보내지 않아요." else "좌석과 공조 상태를 자동으로 갱신해요. 음성 등록은 다음에 연결할 예정이에요.",style=MaterialTheme.typography.bodySmall,color=MoriColors.Secondary)
                         }
-                        StatusPill(if(state.preview) "예시 데이터" else "조회 전용",color=MoriColors.Secondary,background=MoriColors.Soft)
+                        StatusPill(if(state.preview) "예시 데이터" else if(state.simulatorActive!=null) "개발용 연결" else "조회 전용",color=MoriColors.Secondary,background=MoriColors.Soft)
                     }
                 }
             }

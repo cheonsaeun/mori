@@ -17,6 +17,7 @@ class VehicleGateway(context: Context) {
     private val vehicle = Vehicle(context.applicationContext)
     private var initialized = false
     private val capabilities = mutableMapOf<String, Set<SeatArea>>()
+    private val signedTemperatureAreas = mutableSetOf<SeatArea>()
     private val seatAreas = mapOf(
         SeatId.DRIVER to SeatArea(SeatValue.ROW_1_LEFT),
         SeatId.PASSENGER to SeatArea(SeatValue.ROW_1_RIGHT),
@@ -59,19 +60,37 @@ class VehicleGateway(context: Context) {
         fun readable(name: String) = name == "READ" || name == "READ_WRITE"
         val occupancy = async { areas("occupancy") { ok, fail -> seat.checkSeatOccupancyCapabilities({ config, list -> ok(if (readable(config.accessType.name)) list.toSet() else emptySet()) }, fail) } }
         val backrest = async { areas("backrest") { ok, fail -> seat.checkSeatBackrestAnglePositionCapabilities({ config, map -> ok(if (readable(config.accessType.name)) map.keys else emptySet()) }, fail) } }
-        val heat = async { areas("heat") { ok, fail -> seat.checkSeatTemperatureCapabilities({ config, map -> ok(if (readable(config.accessType.name)) map.keys else emptySet()) }, fail) } }
+        val heat = async { areas("heat") { ok, fail -> seat.checkSeatTemperatureCapabilities({ config, map ->
+            map.forEach { (area, bounds) -> if (bounds.minValue < 0) signedTemperatureAreas.add(area) }
+            ok(if (readable(config.accessType.name)) map.keys else emptySet())
+        }, fail) } }
         val vent = async { areas("vent") { ok, fail -> seat.checkSeatVentilationCapabilities({ config, map -> ok(if (readable(config.accessType.name)) map.keys else emptySet()) }, fail) } }
         val temperature = async { areas("temperature") { ok, fail -> hvac.checkHvacTemperatureCapabilities({ config, map, _ -> ok(if (readable(config.accessType.name)) map.keys else emptySet()) }, fail) } }
         val fan = async { areas("fan") { ok, fail -> hvac.checkHvacFanSpeedCapabilities({ config, map -> ok(if (readable(config.accessType.name)) map.keys else emptySet()) }, fail) } }
         val power = async { areas("power") { ok, fail -> hvac.checkHvacPowerCapabilities({ config, list -> ok(if (readable(config.accessType.name)) list.toSet() else emptySet()) }, fail) } }
         val oc = occupancy.await(); val ba = backrest.await(); val he = heat.await(); val ve = vent.await()
         val te = temperature.await(); val fa = fan.await(); val po = power.await()
+        suspend fun mode(label: String, key: String, capability: ((Set<SeatArea>?) -> Unit, (Exception) -> Unit) -> Unit, getter: (SeatArea, (Boolean?) -> Unit, (Exception) -> Unit) -> Unit): ClimateMode {
+            val supported=areas(key,capability)
+            val area=supported?.firstOrNull()
+            val signal=if(area==null) Signal<Boolean>(availability=if(supported==null) Availability.UNAVAILABLE else Availability.UNSUPPORTED) else read<Boolean> { ok,fail -> getter(area,ok,fail) }
+            return ClimateMode(label,signal)
+        }
+        val modes=listOf(
+            async { mode("A/C","ac",{ ok,fail -> hvac.checkHvacAcCapabilities({config,list -> ok(if(readable(config.accessType.name)) list.toSet() else emptySet())},fail) },{area,ok,fail -> hvac.getHvacAcState(area,ok,fail)}) },
+            async { mode("Auto","auto",{ ok,fail -> hvac.checkHvacAutoCapabilities({config,list -> ok(if(readable(config.accessType.name)) list.toSet() else emptySet())},fail) },{area,ok,fail -> hvac.getHvacAutoState(area,ok,fail)}) },
+            async { mode("Sync","sync",{ ok,fail -> hvac.checkHvacDualCapabilities({config,list -> ok(if(readable(config.accessType.name)) list.toSet() else emptySet())},fail) },{area,ok,fail -> hvac.getHvacDualState(area,ok,fail)}) },
+            async { mode("내기순환","recirc",{ ok,fail -> hvac.checkHvacRecirculationCapabilities({config,list -> ok(if(readable(config.accessType.name)) list.toSet() else emptySet())},fail) },{area,ok,fail -> hvac.getHvacRecirculationState(area,ok,fail)}) },
+        )
         val seats = seatAreas.map { (id, area) -> async {
             val o = async { inArea<Boolean>(oc, area) { ok, fail -> seat.getCurrentSeatOccupancy(area, ok, fail) } }
             val b = async { inArea<Int>(ba, area) { ok, fail -> seat.getCurrentSeatBackrestAnglePosition(area, ok, fail) } }
             val h = async { inArea<Int>(he, area) { ok, fail -> seat.getHvacSeatTemperature(area, ok, fail) } }
             val v = async { inArea<Int>(ve, area) { ok, fail -> seat.getHvacSeatVentilationState(area, ok, fail) } }
-            SeatSnapshot(id, o.await(), b.await(), h.await(), v.await())
+            val temperatureState = h.await()
+            val ventilationState = v.await()
+            val comfort=normalizeSeatComfort(temperatureState,ventilationState,area in signedTemperatureAreas)
+            SeatSnapshot(id,o.await(),b.await(),comfort.first,comfort.second)
         } }
         val zones = ((te ?: emptySet()) + (fa ?: emptySet()) + (po ?: emptySet())).sortedBy { it.values.sumOf { v -> v.id } }.map { area -> async {
             val t = async { inArea<Float>(te, area) { ok, fail -> hvac.getHvacTemperature(area, TemperatureUnit.CELSIUS, ok, fail) } }
@@ -82,7 +101,7 @@ class VehicleGateway(context: Context) {
         val result = seats.map { it.await() }
         val climate = zones.map { it.await() }
         val received = result.any { s -> listOf(s.occupant.availability, s.backrest.availability, s.heat.availability, s.ventilation.availability).any { it == Availability.LIVE } } || climate.any { it.temperature.availability == Availability.LIVE || it.fan.availability == Availability.LIVE || it.power.availability == Availability.LIVE }
-        VehicleSnapshot(result, climate, received, if (received) System.currentTimeMillis() else null)
+        VehicleSnapshot(result, climate, received, if (received) System.currentTimeMillis() else null,modes.map {it.await()})
     }
 
     private fun zoneLabel(area: SeatArea): String {
@@ -104,5 +123,6 @@ class VehicleGateway(context: Context) {
         if (initialized) runCatching { vehicle.release() }
         initialized = false
         capabilities.clear()
+        signedTemperatureAreas.clear()
     }
 }
