@@ -33,3 +33,24 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+# macOS
+.DS_Store
+
+# Server environment and generated output
+.env
+.env.*
+!.env.example
+!.env.*.example
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+dist/
+coverage/
+
+# Private credentials and research data
+secrets/
+private-data/
+*.pem
+*.p12
