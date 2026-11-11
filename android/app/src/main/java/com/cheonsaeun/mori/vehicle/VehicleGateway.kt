@@ -60,6 +60,8 @@ class VehicleGateway(context: Context) {
         fun readable(name: String) = name == "READ" || name == "READ_WRITE"
         val occupancy = async { areas("occupancy") { ok, fail -> seat.checkSeatOccupancyCapabilities({ config, list -> ok(if (readable(config.accessType.name)) list.toSet() else emptySet()) }, fail) } }
         val backrest = async { areas("backrest") { ok, fail -> seat.checkSeatBackrestAnglePositionCapabilities({ config, map -> ok(if (readable(config.accessType.name)) map.keys else emptySet()) }, fail) } }
+        val slide = async { areas("slide") { ok, fail -> seat.checkSeatForeAftPositionCapabilities({ config, map -> ok(if (readable(config.accessType.name)) map.keys else emptySet()) }, fail) } }
+        val height = async { areas("height") { ok, fail -> seat.checkSeatHeightPositionCapabilities({ config, map -> ok(if (readable(config.accessType.name)) map.keys else emptySet()) }, fail) } }
         val heat = async { areas("heat") { ok, fail -> seat.checkSeatTemperatureCapabilities({ config, map ->
             map.forEach { (area, bounds) -> if (bounds.minValue < 0) signedTemperatureAreas.add(area) }
             ok(if (readable(config.accessType.name)) map.keys else emptySet())
@@ -68,6 +70,7 @@ class VehicleGateway(context: Context) {
         val temperature = async { areas("temperature") { ok, fail -> hvac.checkHvacTemperatureCapabilities({ config, map, _ -> ok(if (readable(config.accessType.name)) map.keys else emptySet()) }, fail) } }
         val fan = async { areas("fan") { ok, fail -> hvac.checkHvacFanSpeedCapabilities({ config, map -> ok(if (readable(config.accessType.name)) map.keys else emptySet()) }, fail) } }
         val power = async { areas("power") { ok, fail -> hvac.checkHvacPowerCapabilities({ config, list -> ok(if (readable(config.accessType.name)) list.toSet() else emptySet()) }, fail) } }
+        val sl = slide.await(); val hi = height.await()
         val oc = occupancy.await(); val ba = backrest.await(); val he = heat.await(); val ve = vent.await()
         val te = temperature.await(); val fa = fan.await(); val po = power.await()
         suspend fun mode(label: String, key: String, capability: ((Set<SeatArea>?) -> Unit, (Exception) -> Unit) -> Unit, getter: (SeatArea, (Boolean?) -> Unit, (Exception) -> Unit) -> Unit): ClimateMode {
@@ -85,12 +88,14 @@ class VehicleGateway(context: Context) {
         val seats = seatAreas.map { (id, area) -> async {
             val o = async { inArea<Boolean>(oc, area) { ok, fail -> seat.getCurrentSeatOccupancy(area, ok, fail) } }
             val b = async { inArea<Int>(ba, area) { ok, fail -> seat.getCurrentSeatBackrestAnglePosition(area, ok, fail) } }
+            val s = async { inArea<Int>(sl, area) { ok, fail -> seat.getCurrentSeatForeAftPosition(area, ok, fail) } }
+            val e = async { inArea<Int>(hi, area) { ok, fail -> seat.getCurrentSeatHeightPosition(area, ok, fail) } }
             val h = async { inArea<Int>(he, area) { ok, fail -> seat.getHvacSeatTemperature(area, ok, fail) } }
             val v = async { inArea<Int>(ve, area) { ok, fail -> seat.getHvacSeatVentilationState(area, ok, fail) } }
             val temperatureState = h.await()
             val ventilationState = v.await()
             val comfort=normalizeSeatComfort(temperatureState,ventilationState,area in signedTemperatureAreas)
-            SeatSnapshot(id,o.await(),b.await(),comfort.first,comfort.second)
+            SeatSnapshot(id,o.await(),b.await(),comfort.first,comfort.second,slide=s.await(),height=e.await())
         } }
         val zones = ((te ?: emptySet()) + (fa ?: emptySet()) + (po ?: emptySet())).sortedBy { it.values.sumOf { v -> v.id } }.map { area -> async {
             val t = async { inArea<Float>(te, area) { ok, fail -> hvac.getHvacTemperature(area, TemperatureUnit.CELSIUS, ok, fail) } }

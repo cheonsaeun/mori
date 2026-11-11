@@ -19,9 +19,8 @@ import java.util.Locale
 
 @Composable
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
-fun SharedSpace(state: DashboardState, modifier: Modifier = Modifier) {
-    Column(modifier,verticalArrangement=Arrangement.spacedBy(20.dp)) {
-        MoriPanel(Modifier.fillMaxWidth().weight(1.18f)) {
+fun ClimateCurrentPanel(state: DashboardState, modifier: Modifier = Modifier) {
+    MoriPanel(modifier) {
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
                 Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
                     MoriIcon("climate")
@@ -69,67 +68,67 @@ fun SharedSpace(state: DashboardState, modifier: Modifier = Modifier) {
             }
             Text("설정 온도를 표시해요. 지원 구역은 차량마다 달라요.",style=MaterialTheme.typography.bodySmall,color=MoriColors.Secondary)
         }
-        MusicPanel(state.preview,Modifier.fillMaxWidth().weight(1f))
-        Row(Modifier.fillMaxWidth().background(Color.White.copy(alpha=.75f),MoriShapes.Card).padding(20.dp),horizontalArrangement=Arrangement.spacedBy(14.dp),verticalAlignment=Alignment.CenterVertically) {
-            MoriIcon("people")
-            Column {
-                Text("한 공간, 서로 다른 편안함",style=MaterialTheme.typography.titleSmall)
-                Text("시트는 각자에게, 공조와 음악은 함께하는 공간에.",style=MaterialTheme.typography.bodySmall,color=MoriColors.Secondary)
+}
+
+@Composable
+fun CommonDashboard(state: DashboardState, model: MoriViewModel, stacked: Boolean, modifier: Modifier = Modifier) {
+    if(stacked) Column(modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(20.dp)) {
+        CommonColumn(state,model,false,Modifier.fillMaxWidth().height(800.dp))
+        CommonColumn(state,model,true,Modifier.fillMaxWidth().height(800.dp))
+    } else Row(modifier,horizontalArrangement=Arrangement.spacedBy(20.dp)) {
+        CommonColumn(state,model,false,Modifier.weight(1f).fillMaxHeight())
+        CommonColumn(state,model,true,Modifier.weight(1f).fillMaxHeight())
+    }
+}
+
+@Composable
+private fun CommonColumn(state: DashboardState, model: MoriViewModel, media: Boolean, modifier: Modifier) {
+    Column(modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(20.dp)) {
+        if(media) MediaCurrentPanel(state,Modifier.fillMaxWidth().height(460.dp)) else ClimateCurrentPanel(state,Modifier.fillMaxWidth().height(460.dp))
+        MoriPanel(Modifier.fillMaxWidth()) {
+            Text(if(media) "탑승자의 미디어 선호" else "탑승자의 공조 선호",style=MaterialTheme.typography.titleLarge)
+            Text(if(media) "한 사람의 선호를 함께 들어요" else "선택한 선호를 지원 공조 구역에 적용해요",style=MaterialTheme.typography.bodyMedium,color=MoriColors.Secondary)
+            if(state.profiles.isEmpty()) Text("개별 좌석 탭에서 프로필을 추가해 주세요.",style=MaterialTheme.typography.bodyLarge,color=MoriColors.Secondary)
+            state.profiles.forEach { p ->
+                Column(Modifier.fillMaxWidth().background(MoriColors.Soft,MoriShapes.Item).padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+                    Text(p.name,style=MaterialTheme.typography.titleLarge)
+                    Text(if(media) "${if(p.media.radio) "라디오" else "음악"} / ${p.media.selection.ifBlank {"선호 미등록"}}" else climateLabel(p.climate),style=MaterialTheme.typography.bodyLarge,color=MoriColors.Secondary)
+                    LargeAction(if(media) "미디어 선호 적용" else "공조에 적용",{if(media) model.applyMedia(p) else model.applyProfile(p,true)},Modifier.fillMaxWidth(),enabled=!state.preview && !state.controlBusy && if(media) p.media.selection.isNotBlank() else p.climate.configured,secondary=true)
+                }
             }
         }
     }
 }
 
 @Composable
-private fun MusicPanel(preview: Boolean, modifier: Modifier) {
-    var radio by remember { mutableStateOf(false) }
+private fun MediaCurrentPanel(state: DashboardState, modifier: Modifier) {
     Surface(modifier,shape=MoriShapes.Panel,color=MoriColors.Navy) {
-        Column(Modifier.background(MoriColors.MediaGradient).padding(24.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
-            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
-                Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-                    MoriIcon(if(radio) "radio" else "music",color=Color(0xFFBBB9FF))
-                    Text("함께 듣는 음악",style=MaterialTheme.typography.titleLarge,color=Color.White)
-                }
-                Row {
-                    TextButton(onClick={radio=false}) { Text("음악",color=if(!radio) Color.White else Color(0xFFAAAFCB)) }
-                    TextButton(onClick={radio=true}) { Text("라디오",color=if(radio) Color.White else Color(0xFFAAAFCB)) }
-                }
+        Column(Modifier.background(MoriColors.MediaGradient).padding(28.dp),verticalArrangement=Arrangement.spacedBy(24.dp)) {
+            Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                MoriIcon(if(state.media.radio) "radio" else "music",Modifier.size(32.dp),Color.White)
+                Text("함께 듣는 ${if(state.media.radio) "라디오" else "음악"}",style=MaterialTheme.typography.headlineMedium,color=Color.White)
             }
             Row(Modifier.weight(1f),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(24.dp)) {
-                MusicArtwork(Modifier.size(110.dp))
-                Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
-                    Text(when { preview && radio -> "주말의 라디오"; preview -> "Soft afternoon"; radio -> "라디오 연결 준비"; else -> "우리의 취향을 모아서" },style=MaterialTheme.typography.titleLarge,color=Color.White)
-                    Text(if(preview) "${if(radio) "FM 채널" else "MORI selection"} / 디자인 예시" else "앱 내 재생 기능을 연결할 공간이에요",style=MaterialTheme.typography.bodyMedium,color=Color(0xFFCDD0E7))
-                    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                        StatusPill("모든 탑승자",Color(0xFFDFDDFF),Color.White.copy(alpha=.10f))
-                        if(preview) StatusPill(if(radio) "같은 채널" else "공통 취향",Color(0xFFDFDDFF),Color.White.copy(alpha=.10f))
-                    }
+                MusicArtwork(Modifier.size(100.dp))
+                Column(verticalArrangement=Arrangement.spacedBy(12.dp)) {
+                    Text(state.media.selection.ifBlank {"함께 들을 취향을 골라요"},style=MaterialTheme.typography.headlineMedium,color=Color.White,maxLines=2)
+                    Text("모든 탑승자의 공통 설정",style=MaterialTheme.typography.bodyLarge,color=Color(0xFFE5E4F4))
                 }
             }
-            HorizontalDivider(color=Color.White.copy(alpha=.12f))
-            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
-                Text(if(preview) "재생 화면 예시 / 실제 음원 미연결" else "차량의 다른 음악 앱 상태는 아직 연결되지 않았어요",style=MaterialTheme.typography.bodySmall,color=Color(0xFFC0C4DF))
-                Waveform()
-            }
+            Text("선호 설정만 반영 / 음원 재생 연결 전",style=MaterialTheme.typography.bodyLarge,color=Color(0xFFE5E4F4))
         }
     }
 }
 
 @Composable
 private fun MusicArtwork(modifier: Modifier) {
+    val colors=MoriColors
     Canvas(modifier) {
         val center=Offset(size.width/2,size.height/2)
         drawRoundRect(Brush.linearGradient(listOf(Color(0xFF7C8BFA),Color(0xFFA89CE8),Color(0xFF5D5EA5))),cornerRadius=androidx.compose.ui.geometry.CornerRadius(22.dp.toPx()))
         drawCircle(Color.White.copy(alpha=.16f),size.width*.39f,center)
         drawCircle(Color.White.copy(alpha=.4f),size.width*.3f,center,style=Stroke(1.dp.toPx()))
-        drawCircle(MoriColors.Navy.copy(alpha=.75f),size.width*.19f,center)
+        drawCircle(colors.Navy.copy(alpha=.75f),size.width*.19f,center)
         drawCircle(Color(0xFFE9DFFF),size.width*.05f,center)
-    }
-}
-
-@Composable
-private fun Waveform() {
-    Row(horizontalArrangement=Arrangement.spacedBy(4.dp),verticalAlignment=Alignment.CenterVertically) {
-        listOf(8,18,26,14,22,10).forEach { Box(Modifier.width(3.dp).height(it.dp).background(Color(0xFFB9B6FF),MoriShapes.Pill)) }
     }
 }

@@ -15,7 +15,8 @@ class EmulatorSession(private val onStatus: (Boolean?) -> Unit) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val client = "mori-debug-${Process.myPid()}"
     private var started = false
-    @Volatile private var seatPositions: Map<SeatId,Int> = emptyMap()
+    @Volatile private var seatPositions: Map<SeatId,Map<String,Int>> = emptyMap()
+    @Volatile private var occupied: Map<SeatId,Boolean> = emptyMap()
     private var lastRecorded: VehicleSnapshot? = null
 
     fun start() {
@@ -36,10 +37,10 @@ class EmulatorSession(private val onStatus: (Boolean?) -> Unit) {
                         if (SystemClock.elapsedRealtime() - lastHealth >= 2000) {
                             val state = request("GET", "/vehicle/state")
                             val hvac = state.getJSONObject("hvac")
-                            val positions=state.optJSONObject("seat")?.optJSONObject("positions")?.optJSONObject("recline")
-                            seatPositions=mapOf(SeatId.DRIVER to "driver",SeatId.PASSENGER to "passenger",SeatId.REAR_LEFT to "rear_left",SeatId.REAR_RIGHT to "rear_right").mapNotNull { (id,key) ->
-                                if(positions!=null && positions.has(key)) id to positions.getInt(key) else null
-                            }.toMap()
+                            val seats=state.optJSONObject("seat")
+                            readPositions(seats?.optJSONObject("positions"))
+                            val occupancy=seats?.optJSONObject("occupied")
+                            occupied=mapOf(SeatId.DRIVER to "driver",SeatId.PASSENGER to "passenger",SeatId.REAR_LEFT to "rear_left",SeatId.REAR_RIGHT to "rear_right").mapNotNull { (id,key) -> if(occupancy!=null && occupancy.has(key)) id to occupancy.getBoolean(key) else null }.toMap()
                             if (isActive) onStatus(hvac.optBoolean("emulator_active") && hvac.optJSONObject("publisher_ready")?.optBoolean("any") == true)
                             lastHealth = SystemClock.elapsedRealtime()
                         }
@@ -47,6 +48,7 @@ class EmulatorSession(private val onStatus: (Boolean?) -> Unit) {
                         if (isActive) onStatus(false)
                         configured = false
                         seatPositions = emptyMap()
+                        occupied = emptyMap()
                     }
                     delay(800)
                 }
@@ -70,10 +72,22 @@ class EmulatorSession(private val onStatus: (Boolean?) -> Unit) {
         } finally { connection.disconnect() }
     }
 
+    private fun readPositions(positions: JSONObject?) {
+        if(positions==null) return
+        seatPositions=mapOf(SeatId.DRIVER to "driver",SeatId.PASSENGER to "passenger",SeatId.REAR_LEFT to "rear_left",SeatId.REAR_RIGHT to "rear_right").mapValues { (_,key) ->
+            listOf("slide","recline","height").mapNotNull { axis -> positions.optJSONObject(axis)?.let { if(it.has(key)) axis to it.getInt(key) else null } }.toMap()
+        }
+    }
+
     fun decorate(snapshot: VehicleSnapshot): VehicleSnapshot {
         val positions=seatPositions
         return snapshot.copy(seats=snapshot.seats.map { seat ->
-            positions[seat.id]?.let { position -> seat.copy(backrest=Signal(position,Availability.LIVE,SignalSource.EMULATOR)) } ?: seat
+            positions[seat.id]?.let { values -> seat.copy(
+                occupant=occupied[seat.id]?.let { Signal(it,Availability.LIVE,SignalSource.EMULATOR) } ?: seat.occupant,
+                backrest=values["recline"]?.let { Signal(it,Availability.LIVE,SignalSource.EMULATOR) } ?: seat.backrest,
+                slide=values["slide"]?.let { Signal(it,Availability.LIVE,SignalSource.EMULATOR) } ?: seat.slide,
+                height=values["height"]?.let { Signal(it,Availability.LIVE,SignalSource.EMULATOR) } ?: seat.height,
+            ) } ?: seat
         })
     }
 
@@ -91,10 +105,7 @@ class EmulatorSession(private val onStatus: (Boolean?) -> Unit) {
             require(path.startsWith("/vehicle/hvac?") || path.startsWith("/vehicle/seat?"))
             val response=request("PUT", path)
             if(path.startsWith("/vehicle/seat?")) {
-                val positions=response.optJSONObject("positions")?.optJSONObject("recline")
-                if(positions!=null) seatPositions=mapOf(SeatId.DRIVER to "driver",SeatId.PASSENGER to "passenger",SeatId.REAR_LEFT to "rear_left",SeatId.REAR_RIGHT to "rear_right").mapNotNull { (id,key) ->
-                    if(positions.has(key)) id to positions.getInt(key) else null
-                }.toMap()
+                readPositions(response.optJSONObject("positions"))
             }
             Unit
         }
