@@ -1,74 +1,76 @@
 package com.cheonsaeun.mori.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.lightColorScheme
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-
-private val Forest = Color(0xFF183D32)
-private val Canvas = Color(0xFFF5F7F1)
+import com.cheonsaeun.mori.design.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 
 @Composable
 fun MoriApp(model: MoriViewModel = viewModel()) {
     val state by model.state.collectAsStateWithLifecycle()
-    MaterialTheme(colorScheme = lightColorScheme(primary = Forest, background = Canvas)) {
-        Surface(modifier = Modifier.fillMaxSize(), color = Canvas) {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()).padding(40.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp),
-            ) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("MORI", fontSize = 28.sp, fontWeight = FontWeight.Black, color = Forest)
-                    Text("첫 번째 출발", color = Forest, fontSize = 16.sp)
+    val lifecycle=LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(lifecycle,state.preview) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while(isActive && !state.preview) { model.refresh(); delay(MoriMotion.PollMillis) }
+        }
+    }
+    MoriTheme {
+        Surface(Modifier.fillMaxSize(),color=MoriColors.Canvas) {
+            Column(Modifier.background(MoriColors.AmbientGradient).padding(MoriSpace.Page),verticalArrangement=Arrangement.spacedBy(20.dp)) {
+                Row(Modifier.fillMaxWidth().height(64.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(16.dp)) {
+                    MoriMark(Modifier.width(62.dp).height(48.dp))
+                    Column {
+                        Text("MORI",style=MaterialTheme.typography.headlineLarge,fontWeight=FontWeight.Black)
+                        Text("Mobility + Memory",style=MaterialTheme.typography.labelSmall,color=MoriColors.Secondary)
+                    }
+                    Spacer(Modifier.weight(1f))
+                    StatusPill(
+                        when { state.preview -> "디자인 미리보기"; state.vehicle.received -> "차량 상태 연결됨"; state.vehicle.seats.any {it.occupant.availability != com.cheonsaeun.mori.model.Availability.WAITING} -> "차량 연결 확인 필요"; else -> "차량 응답 확인 중" },
+                        if(state.preview) MoriColors.Primary else if(state.vehicle.received) MoriColors.Success else MoriColors.Secondary,
+                        if(!state.preview && state.vehicle.received) MoriColors.SuccessSoft else Color.White,dot=true,
+                    )
+                    OutlinedButton(onClick=model::togglePreview,modifier=Modifier.height(56.dp),shape=MoriShapes.Pill) {
+                        Text(if(state.preview) "실제 차량 보기" else "디자인 미리보기")
+                    }
+                    TextButton(onClick=model::toggleGuide,modifier=Modifier.height(56.dp)) { Text(if(state.showGuide) "차량 공간" else "스타일 가이드") }
                 }
-                Column(
-                    modifier = Modifier.fillMaxWidth().background(Forest, RoundedCornerShape(28.dp)).padding(32.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Text("함께 타는 사람을 위한\n다정한 출발 준비", color = Color.White, fontSize = 36.sp, lineHeight = 46.sp, fontWeight = FontWeight.Bold)
-                    Text("동승자의 선호와 이번 이동의 요청을 함께 살피는 카 컨시어지", color = Color(0xFFD3E7D7), fontSize = 18.sp)
-                }
-                Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(24.dp)) {
-                    Column(modifier = Modifier.fillMaxWidth().padding(28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("차량 연결 확인", fontWeight = FontWeight.Bold, color = Forest, fontSize = 22.sp)
-                        Text(state.title, fontSize = 26.sp, lineHeight = 36.sp, fontWeight = FontWeight.SemiBold)
-                        Text(state.detail, color = Color(0xFF59665F), fontSize = 17.sp)
-                        Button(onClick = model::checkVehicle, enabled = !state.loading) {
-                            Text(if (state.loading) "확인 중…" else "차량 상태 조회", modifier = Modifier.padding(8.dp), fontSize = 18.sp)
+                if(state.showGuide) {
+                    DesignGuide(Modifier.weight(1f))
+                } else {
+                    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Bottom) {
+                        Column(verticalArrangement=Arrangement.spacedBy(6.dp)) {
+                            Text("모두의 편안함을 한눈에",style=MaterialTheme.typography.headlineLarge)
+                            Text("각자의 자리와 함께하는 공간을 살펴보세요.",style=MaterialTheme.typography.bodyLarge,color=MoriColors.Secondary)
                         }
-                        if (state.success) Text("실제 차량 응답을 확인했습니다", color = Forest)
+                        val count=state.vehicle.seats.count { it.occupant.value==true }
+                        Text(if(state.preview) "예시 탑승자 ${count}명" else if(state.vehicle.seats.any {it.occupant.value!=null}) "확인된 탑승 ${count}명" else "탑승 상태 확인 중",style=MaterialTheme.typography.labelLarge,color=MoriColors.Secondary)
+                    }
+                    Row(Modifier.weight(1f),horizontalArrangement=Arrangement.spacedBy(24.dp)) {
+                        CabinMap(state,model::selectSeat,Modifier.weight(.56f).fillMaxHeight())
+                        SharedSpace(state,Modifier.weight(.44f).fillMaxHeight())
+                    }
+                    Row(Modifier.fillMaxWidth().background(Color.White.copy(alpha=.86f),MoriShapes.Card).padding(horizontal=24.dp,vertical=18.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(16.dp)) {
+                        Box(Modifier.size(48.dp).background(MoriColors.BrandGradient,MoriShapes.Item),contentAlignment=Alignment.Center) { MoriIcon("mic",Modifier.size(24.dp),Color.White) }
+                        Column(Modifier.weight(1f)) {
+                            Text("“조수석에는 민지, 뒤 오른쪽에는 준호가 탔어.”",style=MaterialTheme.typography.titleMedium)
+                            Text(if(state.preview) "미리보기의 이름과 설정은 예시예요. 차량 명령은 보내지 않아요." else "좌석과 공조 상태를 자동으로 갱신해요. 음성 등록은 다음에 연결할 예정이에요.",style=MaterialTheme.typography.bodySmall,color=MoriColors.Secondary)
+                        }
+                        StatusPill(if(state.preview) "예시 데이터" else "조회 전용",color=MoriColors.Secondary,background=MoriColors.Soft)
                     }
                 }
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("이제 함께 만들어 갈 경험", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Forest)
-                    Text("음성으로 동승자와 좌석 등록 → 공조와 음악 준비안 → 확인 후 적용", color = Color(0xFF59665F), fontSize = 17.sp)
-                    Text("현재는 시작 화면과 차량 조회가 준비되어 있습니다.", color = Color(0xFF59665F), fontSize = 15.sp)
-                }
-                Spacer(Modifier.height(8.dp))
             }
         }
     }

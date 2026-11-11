@@ -2,12 +2,16 @@
 
 ## 현재 코드
 
-- `MainActivity`: Android 앱 진입점
-- `ui/MoriApp`: Compose 시작 화면
-- `ui/MoriViewModel`: 조회 상태, 실패, 타임아웃 관리
-- `vehicle/VehicleGateway`: Pleos API 호출과 자원 해제
+- `design/MoriTheme`: 색상, 글꼴, 간격, 모양, 모션 토큰
+- `design/MoriComponents`: 패널, 배지, 심볼, 상태 지표
+- `ui/MoriApp`: 차량 대시보드와 스타일 가이드 진입점
+- `ui/SeatMap`, `ui/SharedSpace`: 개별 좌석과 공통 공간
+- `ui/MoriViewModel`: 실제 데이터와 미리보기 모드, 좌석 선택
+- `ui/preview/PreviewSnapshot`: 명시적 디자인 예시 데이터
+- `model/VehicleSnapshot`: 값과 지원 상태를 분리한 화면 모델
+- `vehicle/VehicleGateway`: capability 조회, 상태 조회, 자원 해제
 
-화면은 Vehicle SDK를 직접 호출하지 않습니다. 향후 공조와 좌석 조회는 gateway를 기능별로 확장합니다. 현재 gateway는 읽기 전용입니다. NaviHelper는 의존성만 연결되어 있으며 경로 요청은 아직 실행하지 않습니다.
+화면 활성 상태에서만 조회 루프를 실행합니다. 콜백을 코루틴으로 변환하며, 각 요청은 1.8초 제한을 둡니다. 취소된 요청은 뒤늦은 응답을 화면에 반영하지 않습니다. 지원 영역은 기능별로 캐시하고 조회 실패 시에는 다시 확인합니다. 모든 차량 동작은 읽기 전용입니다. NaviHelper는 의존성만 연결되어 있습니다.
 
 ## 음성 기능을 연결할 때
 
