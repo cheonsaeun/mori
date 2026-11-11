@@ -12,12 +12,12 @@ class ProfileStore(context: Context) {
         (0 until array.length()).map { i ->
             val p = array.getJSONObject(i)
             fun int(key: String) = if(p.isNull(key)) null else p.getInt(key)
-            PersonProfile(p.getString("id"), p.getString("name"), SeatPreference(int("backrest"), int("slide"), int("height"), int("heat"), int("ventilation")), ClimatePreference(if(p.isNull("temperature")) null else p.getDouble("temperature").toFloat(), int("fan")), MediaPreference(p.optBoolean("radio"), p.optString("selection")))
+            PersonProfile(p.getString("id"), p.getString("name"), SeatPreference(int("backrest"), int("slide"), int("height"), int("heat"), int("ventilation")), ClimatePreference(if(p.isNull("temperature")) null else p.getDouble("temperature").toFloat(), int("fan")), MediaPreference(p.optBoolean("radio"), p.optString("selection")), Relationship.entries.firstOrNull {it.name==p.optString("relationship")} ?: Relationship.UNSPECIFIED)
         }
     }.getOrDefault(emptyList())
     fun save(profiles: List<PersonProfile>): Boolean = storage.edit().putString("profiles", JSONArray().apply {
         profiles.forEach { p -> put(JSONObject().apply {
-            put("id",p.id); put("name",p.name)
+            put("relationship",p.relationship.name); put("id",p.id); put("name",p.name)
             put("backrest",p.seat.backrest); put("slide",p.seat.slide); put("height",p.seat.height)
             put("heat",p.seat.heat); put("ventilation",p.seat.ventilation)
             put("temperature",p.climate.temperature); put("fan",p.climate.fan)

@@ -23,10 +23,11 @@ class MoriViewModel(application: Application) : AndroidViewModel(application) {
     private val gateway = VehicleGateway(application)
     private val store = ProfileStore(application)
     private val mutableState = MutableStateFlow(DashboardState(profiles = store.load()))
+    private var liveState: DashboardState? = null
     private val refreshLock = Mutex()
     val state = mutableState.asStateFlow()
     private val emulatorSession = EmulatorSession { active ->
-        mutableState.update { it.copy(simulatorActive = active) }
+        mutableState.update { if(it.preview) it else it.copy(simulatorActive = active) }
     }
 
     init { emulatorSession.start() }
@@ -36,12 +37,12 @@ class MoriViewModel(application: Application) : AndroidViewModel(application) {
         try {
             val snapshot = emulatorSession.decorate(gateway.snapshot())
             emulatorSession.record(snapshot)
-            if (!state.value.preview) mutableState.update { it.copy(vehicle = snapshot) }
+            if (!state.value.preview) mutableState.update { it.copy(vehicle = snapshot,assignments=retainedAssignments(it.assignments,it.vehicle,snapshot)) }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
             Log.w("MoriVehicle", "Snapshot unavailable", error)
-            mutableState.update { it.copy(vehicle = VehicleSnapshot()) }
+            mutableState.update { if(it.preview) it else it.copy(vehicle = VehicleSnapshot()) }
         }
     }
 
@@ -55,23 +56,32 @@ class MoriViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun togglePreview() = mutableState.update {
-        it.copy(preview = !it.preview, vehicle = if (!it.preview) PreviewSnapshot.create() else VehicleSnapshot())
+    fun togglePreview() {
+        if(state.value.controlBusy) return
+        if(state.value.preview) {
+            mutableState.value=liveState?.copy(controlFeedback=null) ?: DashboardState(profiles=store.load())
+            liveState=null
+        } else {
+            liveState=state.value
+            mutableState.value=PreviewSnapshot.state()
+        }
     }
+    fun clearFeedback() = mutableState.update {it.copy(controlFeedback=null)}
     fun selectSeat(id: SeatId) = mutableState.update { it.copy(selectedSeat = id) }
     fun toggleGuide() = mutableState.update { it.copy(showGuide = !it.showGuide) }
 
 
     fun selectTab(common: Boolean) = mutableState.update { it.copy(commonTab=common, controlFeedback=null) }
-    fun saveProfile(profile: PersonProfile, bind: Boolean = false) {
-        if(state.value.preview || state.value.controlBusy || profile.name.isBlank()) return
+    fun saveProfile(profile: PersonProfile, bind: Boolean = false, onSaved: () -> Unit = {}) {
+        if(state.value.controlBusy || profile.name.isBlank()) return
         val target=state.value.selectedSeat
         viewModelScope.launch {
             mutableState.update { it.copy(controlBusy=true) }
             val clean=profile.copy(name=profile.name.trim().take(20))
             val profiles=if(state.value.profiles.any {it.id==profile.id}) state.value.profiles.map {if(it.id==profile.id) clean else it} else state.value.profiles + clean
-            val saved=withContext(Dispatchers.IO) { store.save(profiles) }
-            mutableState.update { it.copy(controlBusy=false, profiles=if(saved) profiles else it.profiles, assignments=if(saved && bind) it.assignments + (target to profile.id) else it.assignments, controlFeedback=if(saved) "프로필을 저장했어요." else "저장하지 못했어요. 다시 시도해 주세요.") }
+            val saved=if(state.value.preview) true else withContext(Dispatchers.IO) { store.save(profiles) }
+            mutableState.update { it.copy(controlBusy=false, profiles=if(saved) profiles else it.profiles, assignments=if(saved && bind) connectedAssignments(it.assignments,target,profile.id) else it.assignments, controlFeedback=if(saved) "${if(it.preview) "예시에서 " else ""}프로필을 저장했어요." else "저장하지 못했어요. 다시 시도해 주세요.") }
+            if(saved) onSaved()
         }
     }
     fun removeProfile(id: String) {
@@ -79,20 +89,39 @@ class MoriViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             mutableState.update { it.copy(controlBusy=true) }
             val profiles=state.value.profiles.filterNot { it.id==id }
-            val saved=withContext(Dispatchers.IO) { store.save(profiles) }
+            val saved=if(state.value.preview) true else withContext(Dispatchers.IO) { store.save(profiles) }
             mutableState.update { it.copy(controlBusy=false, profiles=if(saved) profiles else it.profiles, assignments=if(saved) it.assignments.filterValues { v -> v!=id } else it.assignments, controlFeedback=if(saved) "프로필을 삭제했어요." else "삭제하지 못했어요.") }
         }
     }
-    fun clearAssignment() = mutableState.update { it.copy(assignments=it.assignments - it.selectedSeat) }
+    fun clearAssignment(seat: SeatId = state.value.selectedSeat) {
+        if(state.value.controlBusy) return
+        mutableState.update {it.copy(assignments=it.assignments-seat,controlFeedback="게스트로 변경했어요. 차량 설정은 그대로 유지해요.")}
+    }
+    fun setClimatePower(enabled: Boolean) {
+        if(state.value.controlBusy) return
+        if(state.value.preview) mutableState.update {it.copy(vehicle=it.vehicle.copy(zones=it.vehicle.zones.map {zone -> if(zone.power.value!=null) zone.copy(power=zone.power.copy(value=enabled)) else zone}),controlFeedback="예시 공조를 ${if(enabled) "켰어요" else "껐어요"}.")}
+        else sendEmulatorCommand("/vehicle/hvac?power=${if(enabled) 1 else 0}")
+    }
     fun applyMedia(profile: PersonProfile) {
-        if(state.value.preview || profile.media.selection.isBlank()) return
+        if(state.value.controlBusy || profile.media.selection.isBlank()) return
         mutableState.update { it.copy(media=profile.media,controlFeedback="${profile.name}의 미디어 선호를 선택했어요. 음원 재생은 연결 전이에요.") }
     }
-    fun applyProfile(profile: PersonProfile, climateOnly: Boolean = false) {
+    fun applyProfile(profile: PersonProfile, climateOnly: Boolean = false, target: SeatId = state.value.selectedSeat, connect: Boolean = true) {
         val current=state.value
-        if(current.preview || current.controlBusy) return
+        if(current.controlBusy) return
+        if(current.preview) {
+            val vehicle=if(climateOnly) current.vehicle.copy(zones=current.vehicle.zones.map { zone -> zone.copy(
+                temperature=if(zone.temperature.value!=null && profile.climate.temperature!=null) zone.temperature.copy(value=profile.climate.temperature) else zone.temperature,
+                fan=if(zone.fan.value!=null && profile.climate.fan!=null) zone.fan.copy(value=profile.climate.fan) else zone.fan,
+                power=if(zone.power.value!=null) zone.power.copy(value=true) else zone.power,
+            ) }) else current.vehicle.copy(seats=current.vehicle.seats.map { seat -> if(seat.id!=target) seat else {
+                fun merge(signal: Signal<Int>, value: Int?) = if(signal.value!=null && value!=null) signal.copy(value=value) else signal
+                seat.copy(backrest=merge(seat.backrest,profile.seat.backrest),slide=merge(seat.slide,profile.seat.slide),height=merge(seat.height,profile.seat.height),heat=merge(seat.heat,profile.seat.heat),ventilation=merge(seat.ventilation,profile.seat.ventilation))
+            } })
+            mutableState.update {it.copy(vehicle=vehicle,assignments=if(!climateOnly && connect) connectedAssignments(it.assignments,target,profile.id) else it.assignments,controlFeedback="예시 시나리오에 반영했어요. 실제 차량은 변경하지 않아요.")}
+            return
+        }
         if(current.simulatorActive!=true) { mutableState.update { it.copy(controlFeedback="연결된 차량 시뮬레이터에서 적용할 수 있어요.") }; return }
-        val target=current.selectedSeat
         val live=current.vehicle.seats.first { it.id==target }
         val area=when(target) { SeatId.DRIVER -> "driver"; SeatId.PASSENGER -> "passenger"; SeatId.REAR_LEFT -> "rear_left"; SeatId.REAR_RIGHT -> "rear_right" }
         val commands=mutableListOf<String>()
@@ -110,7 +139,9 @@ class MoriViewModel(application: Application) : AndroidViewModel(application) {
             }
             if(profile.seat.heat!=null || profile.seat.ventilation!=null) {
                 if(target==SeatId.DRIVER || target==SeatId.PASSENGER) {
-                    val level=if((profile.seat.ventilation ?: 0)>0) -profile.seat.ventilation!! else profile.seat.heat ?: 0
+                    val heat=profile.seat.heat ?: live.heat.value
+                    val vent=profile.seat.ventilation ?: live.ventilation.value
+                    val level=when { (profile.seat.ventilation ?: 0)>0 -> -profile.seat.ventilation!!; (profile.seat.heat ?: 0)>0 -> profile.seat.heat ?: 0; (vent ?: 0)>0 -> -vent!!; else -> heat ?: 0 }
                     commands += "/vehicle/hvac?${area}_seat=${level.coerceIn(-3,3)}"
                 } else skipped++
             }
@@ -131,7 +162,7 @@ class MoriViewModel(application: Application) : AndroidViewModel(application) {
                 delay(500); refresh()
                 if(readbackMatches()) {verified=true;break}
             }
-            mutableState.update { it.copy(controlBusy=false, assignments=if(!climateOnly) it.assignments + (target to profile.id) else it.assignments, controlFeedback=when {
+            mutableState.update { it.copy(controlBusy=false, assignments=if(!climateOnly && connect && !(live.occupant.value==true && it.vehicle.seats.first {s -> s.id==target}.occupant.value==false)) connectedAssignments(it.assignments,target,profile.id) else it.assignments, controlFeedback=when {
                 commands.isEmpty() -> if(climateOnly) "적용 가능한 공조 설정이 없어요." else "프로필을 연결했어요. 적용 가능한 좌석 설정이 없어요."
                 failed>0 -> "일부 설정을 보내지 못했어요. 현재 상태를 확인해 주세요."
                 skipped>0 -> "지원 항목을 요청했어요. 일부 항목은 미지원이거나 확인이 필요해요."
