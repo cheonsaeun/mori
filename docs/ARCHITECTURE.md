@@ -6,8 +6,8 @@
 - `design/MoriComponents`: 패널, 배지, 심볼, 상태 지표
 - `ui/MoriApp`: 통합 상태 대시보드와 반응형 배치
 - `ui/SeatMap`, `ui/SharedSpace`: 개별 좌석과 공통 공간
-- `ui/MoriViewModel`: 실제 데이터/미리보기, 프로필 저장/적용, 결과 재조회
-- `ui/preview/PreviewSnapshot`: 명시적 디자인 예시 데이터
+- `ui/MoriViewModel`: 실제 데이터, 프로필 저장/적용, 결과 재조회
+- `model/StarterProfiles`: 기존 예시에서 이전한 기본 프로필 목록
 - `model/VehicleSnapshot`: 값과 지원 상태를 분리한 화면 모델
 - `vehicle/VehicleGateway`: capability 조회, 상태 조회, 자원 해제
 
@@ -32,4 +32,4 @@ Pleos 앱에서 마이크 입력 → 음성 AI 서버 → 구조화된 요청 �
 
 프로필 모델은 `model/PersonProfile`, 저장은 `model/ProfileStore`, 편집 화면은 `ui/ProfilePane`에 있습니다. 설정 적용은 코루틴으로 처리하며 즉시 진행 상태를 표시합니다. 실시간 조회는 Mutex로 직렬화하고 적용 후 최대 8회 재조회하여 확인합니다. 이 단계의 공조 선호는 온도와 풍량이며 모드별 선호나 여러 사람 간 조율은 포함하지 않습니다.
 
-2026-11-12: `DashboardDialog`가 관리/탑승자/저장/복원/좌석 조절/공조/미디어 선택 경로를 제공합니다. `ProfileChoices`는 모든 목록의 관계 필터와 탑승 우선 정렬을 공유합니다. 예시 진입 시 실제 DashboardState를 보관하고 가족 시나리오로 교체합니다. 예시의 저장은 디스크를 사용하지 않고 적용은 메모리 상태만 바꿉니다. 이탈 시 실제 상태를 복원하며 진행 중 요청 동안 전환을 제한합니다.
+2026-11-12: `DashboardDialog`가 관리/탑승자/저장/복원/좌석 조절/공조/미디어 선택 경로를 제공합니다. `ProfileChoices`는 모든 목록의 관계 필터와 탑승 우선 정렬을 공유합니다. 실제 차량 상태 하나만 사용하며 모드 전환/예시 상태 분기를 제거했습니다. ProfileStore는 기존 프로필과 누락된 기본 프로필을 한 번 병합하고, 완료 마커와 데이터를 함께 저장합니다. 이후 삭제/수정한 기본 프로필은 복구하거나 덮어쓰지 않습니다. 테스트용 차량 상태는 test 소스 세트에만 포함됩니다.

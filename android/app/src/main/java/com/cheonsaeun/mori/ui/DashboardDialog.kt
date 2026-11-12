@@ -40,7 +40,6 @@ fun DashboardDialog(state: DashboardState, model: MoriViewModel, route: Dashboar
             }
             if(state.controlBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
             if(state.controlFeedback!=null) Text(state.controlFeedback,style=MaterialTheme.typography.bodyMedium,color=MoriColors.Secondary,maxLines=3)
-            if(state.preview) Text("예시 시나리오 안에서만 변경돼요",style=MaterialTheme.typography.bodyMedium,color=MoriColors.Primary)
             confirmation?.let { pending ->
                 AlertDialog(onDismissRequest={confirmation=null},title={Text(pending.title)},text={Column(Modifier.heightIn(max=420.dp).verticalScroll(rememberScrollState())) {Text(pending.message,style=MaterialTheme.typography.bodyLarge)}},confirmButton={LargeAction("확인",{confirmation=null;pending.action()})},dismissButton={LargeAction("취소",{confirmation=null},secondary=true)})
             }
@@ -119,7 +118,7 @@ private fun ColumnScope.SeatAdjustment(state: DashboardState, model: MoriViewMod
         if(live.slide.value!=null) IntSetting("앞뒤 위치",draft.slide,0,100,5) {draft=draft.copy(slide=it)}
         if(live.backrest.value!=null) IntSetting("등받이 위치",draft.backrest,0,100,5) {draft=draft.copy(backrest=it)}
         if(live.height.value!=null) IntSetting("높이",draft.height,0,100,5) {draft=draft.copy(height=it)}
-        val comfort=state.preview || id==SeatId.DRIVER || id==SeatId.PASSENGER
+        val comfort=id==SeatId.DRIVER || id==SeatId.PASSENGER
         if(comfort && live.heat.value!=null) IntSetting("열선",draft.heat,0,3,1) {draft=draft.copy(heat=it,ventilation=if((it ?: 0)>0) 0 else draft.ventilation)}
         if(comfort && live.ventilation.value!=null) IntSetting("통풍",draft.ventilation,0,3,1) {draft=draft.copy(ventilation=it,heat=if((it ?: 0)>0) 0 else draft.heat)}
         if(!comfort) Text("이 시뮬레이터에서 뒷좌석 열선/통풍 조절은 지원하지 않아요.",style=MaterialTheme.typography.bodyMedium,color=MoriColors.Secondary)

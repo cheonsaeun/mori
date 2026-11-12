@@ -46,13 +46,10 @@ data class VehicleSnapshot(
 
 data class DashboardState(
     val vehicle: VehicleSnapshot = VehicleSnapshot(),
-    val commonTab: Boolean = false,
     val profiles: List<PersonProfile> = emptyList(),
     val assignments: Map<SeatId, String> = emptyMap(),
     val media: MediaPreference = MediaPreference(),
-    val preview: Boolean = false,
     val selectedSeat: SeatId = SeatId.DRIVER,
-    val showGuide: Boolean = false,
     val simulatorActive: Boolean? = null,
     val controlBusy: Boolean = false,
     val controlFeedback: String? = null,

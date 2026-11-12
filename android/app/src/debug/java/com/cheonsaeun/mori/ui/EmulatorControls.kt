@@ -16,7 +16,6 @@ import kotlin.math.roundToInt
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EmulatorControls(state: DashboardState, onCommand: (String) -> Unit) {
-    if(state.simulatorActive==null || state.preview) return
     var open by remember { mutableStateOf(false) }
     OutlinedButton(modifier=Modifier.heightIn(min=80.dp),onClick={open=true},enabled=state.simulatorActive==true, ) { Text("차량 테스트") }
     if(!open) return

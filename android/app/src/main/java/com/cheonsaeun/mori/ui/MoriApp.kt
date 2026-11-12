@@ -26,9 +26,9 @@ import kotlinx.coroutines.isActive
 fun MoriApp(model: MoriViewModel = viewModel(), darkTheme: Boolean? = null) {
     val state by model.state.collectAsStateWithLifecycle()
     val lifecycle=LocalLifecycleOwner.current.lifecycle
-    LaunchedEffect(lifecycle,state.preview) {
+    LaunchedEffect(lifecycle) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            while(isActive && !state.preview) {model.refresh();delay(MoriMotion.PollMillis)}
+            while(isActive) {model.refresh();delay(MoriMotion.PollMillis)}
         }
     }
     var overlay by remember {mutableStateOf<DashboardOverlay?>(null)}
@@ -44,13 +44,9 @@ fun MoriApp(model: MoriViewModel = viewModel(), darkTheme: Boolean? = null) {
                             Text("MORI",style=MaterialTheme.typography.headlineLarge)
                             if(!stacked) Text("모두의 편안함을 한눈에",style=MaterialTheme.typography.bodyLarge,color=MoriColors.Secondary)
                         }
-                        if(!stacked) StatusPill(if(state.preview) "가족 예시 시나리오" else if(state.vehicle.received) "차량 상태 연결됨" else "차량 연결 확인 중",dot=true)
-                        if(!stacked) EmulatorControls(state,model::sendEmulatorCommand)
-                        if(!stacked) LargeAction("프로필 관리",{open(OverlayKind.MANAGE)},enabled=!state.controlBusy,secondary=true)
-                        LargeAction(if(state.preview) "실제 차량 보기" else "예시 시나리오",{model.togglePreview()},enabled=!state.controlBusy,secondary=true)
+                        EmulatorControls(state,model::sendEmulatorCommand)
+                        LargeAction("프로필 관리",{open(OverlayKind.MANAGE)},enabled=!state.controlBusy,secondary=true)
                     }
-                    if(stacked) LargeAction("프로필 관리",{open(OverlayKind.MANAGE)},Modifier.fillMaxWidth(),enabled=!state.controlBusy,secondary=true)
-                    if(state.preview) Text("예시에서는 자유롭게 바꿔 보세요. 실제 차량과 저장된 프로필은 변경하지 않아요.",style=MaterialTheme.typography.bodyMedium,color=MoriColors.Secondary)
                     if(state.controlFeedback!=null || state.controlBusy) Row(Modifier.fillMaxWidth().background(MoriColors.Soft,MoriShapes.Item).padding(12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
                         if(state.controlBusy) CircularProgressIndicator(Modifier.size(28.dp),strokeWidth=3.dp)
                         Text(state.controlFeedback ?: "처리하고 있어요…",style=MaterialTheme.typography.bodyMedium,maxLines=3)
