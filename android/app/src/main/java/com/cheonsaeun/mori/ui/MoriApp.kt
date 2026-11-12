@@ -41,7 +41,6 @@ fun MoriApp(model: MoriViewModel = viewModel(), darkTheme: Boolean? = null) {
                     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(16.dp)) {
                         Column(Modifier.weight(1f)) {
                             MoriLogo(Modifier.width(if(stacked) 172.dp else 240.dp).height(if(stacked) 43.dp else 60.dp))
-                            if(!stacked) Text("모두의 편안함을 한눈에",style=MaterialTheme.typography.bodyLarge,color=MoriColors.Secondary)
                         }
                         EmulatorControls(state,model::sendEmulatorCommand)
                         LargeAction("프로필 관리",{open(OverlayKind.MANAGE)},enabled=!state.controlBusy,secondary=true)
