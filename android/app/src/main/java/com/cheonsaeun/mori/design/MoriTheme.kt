@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 class MoriPalette(private val dark: Boolean = false) {
+    val isDark: Boolean get() = dark
     val Ink = if(dark) Color(0xFFECECF7) else Color(0xFF202132)
     val Secondary = if(dark) Color(0xFFC1C4D8) else Color(0xFF62677F)
     val Muted = if(dark) Color(0xFFC1C4D8) else Color(0xFF767B91)

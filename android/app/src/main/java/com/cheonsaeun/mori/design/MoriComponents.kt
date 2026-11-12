@@ -2,6 +2,10 @@ package com.cheonsaeun.mori.design
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
+import com.cheonsaeun.mori.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -33,14 +37,12 @@ fun StatusPill(text: String, color: Color = MoriColors.Primary, background: Colo
 
 @Composable
 fun MoriMark(modifier: Modifier = Modifier) {
-    val colors=MoriColors
-    Canvas(modifier) {
-        val sx = size.width / 108f; val sy = size.height / 88f
-        val left = Path().apply { moveTo(15*sx, 68*sy); cubicTo(25*sx,55*sy,33*sx,41*sy,41*sx,31*sy); cubicTo(44*sx,27*sy,46*sx,28*sy,50*sx,34*sy); lineTo(64*sx,54*sy) }
-        drawPath(left, Brush.linearGradient(listOf(colors.Blue, colors.Primary)), style = Stroke(25*sx, cap = StrokeCap.Round, join = StrokeJoin.Round))
-        val right = Path().apply { moveTo(49*sx,64*sy); lineTo(72*sx,32*sy); cubicTo(75*sx,28*sy,78*sx,29*sy,81*sx,34*sy); lineTo(96*sx,66*sy) }
-        drawPath(right, Brush.linearGradient(listOf(Color(0xFFA0ADFF), colors.Lavender)), style = Stroke(25*sx, cap = StrokeCap.Round, join = StrokeJoin.Round))
-    }
+    Image(painterResource(R.drawable.mori_symbol),contentDescription=null,modifier=modifier,contentScale=ContentScale.Fit)
+}
+
+@Composable
+fun MoriLogo(modifier: Modifier = Modifier) {
+    Image(painterResource(if(MoriColors.isDark) R.drawable.mori_logo_inverse else R.drawable.mori_logo_primary),contentDescription="MORI",modifier=modifier,contentScale=ContentScale.Fit)
 }
 
 @Composable

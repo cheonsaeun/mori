@@ -39,9 +39,8 @@ fun MoriApp(model: MoriViewModel = viewModel(), darkTheme: Boolean? = null) {
                 val stacked=maxWidth<1050.dp
                 Column(verticalArrangement=Arrangement.spacedBy(16.dp)) {
                     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(16.dp)) {
-                        MoriMark(Modifier.width(60.dp).height(52.dp))
                         Column(Modifier.weight(1f)) {
-                            Text("MORI",style=MaterialTheme.typography.headlineLarge)
+                            MoriLogo(Modifier.width(if(stacked) 172.dp else 240.dp).height(if(stacked) 43.dp else 60.dp))
                             if(!stacked) Text("모두의 편안함을 한눈에",style=MaterialTheme.typography.bodyLarge,color=MoriColors.Secondary)
                         }
                         EmulatorControls(state,model::sendEmulatorCommand)

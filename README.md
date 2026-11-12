@@ -1,4 +1,10 @@
 # MORI
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/brand/MORI_logo2.svg">
+  <img src="assets/brand/MORI_logo1.svg" alt="MORI" width="360">
+</picture>
+
 Mobility + Memory
 
 음성으로 동승자 정보와 탑승 좌석을 알려주면, 이전에 저장된 선호와 이번 이동의 요청을 조율해 시트, 공조, 음악 설정을 조정하는 Pleos OS 기반의 차량용 앱입니다.
@@ -17,7 +23,7 @@ Mobility + Memory
 
 음성 대화와 음원 재생은 후속 단계입니다. 현재 음악/라디오는 장르 또는 채널 선호 선택까지만 반영합니다.
 
-![실제 차량 상태 화면](docs/images/live-default.png)
+![실제 차량 상태 화면](docs/images/brand-live.png)
 
 [프로필 선택 화면](docs/images/live-occupant.png) / [관계 필터](docs/images/live-profile-filter.png) / [사용법과 UX 검토](docs/PROFILE_DASHBOARD.md)
 
